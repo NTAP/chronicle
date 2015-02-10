@@ -1,0 +1,27 @@
+#! /bin/bash
+
+# Usage:
+# <scriptname> -i infile.ds -o outfile.ds -k keyfile
+
+
+SCRIPTPATH=`dirname $0`
+BASEPATH=`cd $SCRIPTPATH; pwd`
+ANON_EXE=${SCRIPTPATH}/anonymizer
+
+# The number of upper bits to mask out in IP addresses
+IPBITS=8
+
+${ANON_EXE} $* \
+  --ipaddr=trace::net::ip,source,${IPBITS} \
+  --ipaddr=trace::net::ip,dest,${IPBITS} \
+  --ipaddr=trace::rpc,client,${IPBITS} \
+  --ipaddr=trace::rpc,server,${IPBITS} \
+  --filename_ext=trace::rpc::nfs3::create,filename \
+  --pathname_ext=trace::rpc::nfs3::create,target \
+  --filename_ext=trace::rpc::nfs3::link,filename \
+  --filename_ext=trace::rpc::nfs3::lookup,filename \
+  --filename_ext=trace::rpc::nfs3::readdir::entries,filename \
+  --pathname_ext=trace::rpc::nfs3::readlink,target \
+  --filename_ext=trace::rpc::nfs3::remove,filename \
+  --filename_ext=trace::rpc::nfs3::rename,from_filename \
+  --filename_ext=trace::rpc::nfs3::rename,to_filename

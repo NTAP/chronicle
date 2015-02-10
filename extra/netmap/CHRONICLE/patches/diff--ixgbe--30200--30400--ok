@@ -1,0 +1,125 @@
+diff -urp net/ethernet/intel/ixgbe/ixgbe_main.c ixgbe/ixgbe_main.c
+--- net/ethernet/intel/ixgbe/ixgbe_main.c	2012-09-11 17:24:03.121943823 +0200
++++ net/ixgbe/ixgbe_main.c	2012-09-11 17:32:13.053952394 +0200
+@@ -188,6 +188,22 @@ static const struct ixgbe_reg_info ixgbe
+ 	{}
+ };
+ 
++#if defined(CONFIG_NETMAP) || defined(CONFIG_NETMAP_MODULE)
++/*
++ * The #ifdef DEV_NETMAP / #endif blocks in this file are meant to
++ * be a reference on how to implement netmap support in a driver.
++ * Additional comments are in ixgbe_netmap_linux.h .
++ *
++ * The code is originally developed on FreeBSD and in the interest
++ * of maintainability we try to limit differences between the two systems.
++ *
++ * <ixgbe_netmap_linux.h> contains functions for netmap support
++ * that extend the standard driver.
++ * It also defines DEV_NETMAP so further conditional sections use
++ * that instead of CONFIG_NETMAP
++ */
++#include <ixgbe_netmap_linux.h>
++#endif
+ 
+ /*
+  * ixgbe_regdump - register printout routine
+@@ -745,6 +761,17 @@ static bool ixgbe_clean_tx_irq(struct ix
+ 	unsigned int budget = q_vector->tx.work_limit;
+ 	u16 i = tx_ring->next_to_clean;
+ 
++#ifdef DEV_NETMAP
++	/*
++	 * In netmap mode, all the work is done in the context
++	 * of the client thread. Interrupt handlers only wake up
++	 * clients, which may be sleeping on individual rings
++	 * or on a global resource for all rings.
++	 */
++	if (netmap_tx_irq(adapter->netdev, tx_ring->queue_index))
++		return true; /* seems to be ignored */
++#endif /* DEV_NETMAP */
++
+ 	tx_buffer = &tx_ring->tx_buffer_info[i];
+ 	tx_desc = IXGBE_TX_DESC_ADV(tx_ring, i);
+ 
+@@ -1253,6 +1280,14 @@ static bool ixgbe_clean_rx_irq(struct ix
+ 	u16 cleaned_count = 0;
+ 	bool pkt_is_rsc = false;
+ 
++#ifdef DEV_NETMAP
++	/*
++	 * Same as the txeof routine: only wakeup clients on intr.
++	 */
++	int dummy;
++	if (netmap_rx_irq(adapter->netdev, rx_ring->queue_index, &dummy))
++		return true;
++#endif /* DEV_NETMAP */
+ 	i = rx_ring->next_to_clean;
+ 	rx_desc = IXGBE_RX_DESC_ADV(rx_ring, i);
+ 	staterr = le32_to_cpu(rx_desc->wb.upper.status_error);
+@@ -2420,6 +2455,9 @@ void ixgbe_configure_tx_ring(struct ixgb
+ 	} while (--wait_loop && !(txdctl & IXGBE_TXDCTL_ENABLE));
+ 	if (!wait_loop)
+ 		e_err(drv, "Could not enable Tx Queue %d\n", reg_idx);
++#ifdef DEV_NETMAP
++	ixgbe_netmap_configure_tx_ring(adapter, reg_idx);
++#endif /* DEV_NETMAP */
+ }
+ 
+ static void ixgbe_setup_mtqc(struct ixgbe_adapter *adapter)
+@@ -2783,6 +2821,10 @@ void ixgbe_configure_rx_ring(struct ixgb
+ 	IXGBE_WRITE_REG(hw, IXGBE_RXDCTL(reg_idx), rxdctl);
+ 
+ 	ixgbe_rx_desc_queue_enable(adapter, ring);
++#ifdef DEV_NETMAP
++	if (ixgbe_netmap_configure_rx_ring(adapter, reg_idx))
++		return;
++#endif /* DEV_NETMAP */
+ 	ixgbe_alloc_rx_buffers(ring, ixgbe_desc_unused(ring));
+ }
+ 
+@@ -5341,6 +5383,9 @@ static int ixgbe_open(struct net_device
+ 		goto err_req_irq;
+ 
+ 	ixgbe_up_complete(adapter);
++#ifdef DEV_NETMAP
++	ixgbe_netmap_attach(adapter);
++#endif /* DEV_NETMAP */
+ 
+ 	return 0;
+ 
+--- ixgbe/ixgbe.h	2012-10-22 01:35:38.000000000 -0400
++++ CHRONICLE/ixgbe/ixgbe.h	2013-04-18 16:42:04.681179000 -0400
+@@ -57,7 +57,8 @@
+ #define IXGBE_MAX_TXD			   4096
+ #define IXGBE_MIN_TXD			     64
+ 
+-#define IXGBE_DEFAULT_RXD		    512
++//CHRONICLE: #define IXGBE_DEFAULT_RXD		    512
++#define IXGBE_DEFAULT_RXD		   4096
+ #define IXGBE_MAX_RXD			   4096
+ #define IXGBE_MIN_RXD			     64
+
+--- ixgbe/ixgbe_main.c	2013-04-24 17:21:42.199139000 -0400
++++ CHRONICLE/ixgbe/ixgbe_main.c	2013-04-24 17:21:28.286471000 -0400
+@@ -4993,6 +4993,8 @@ static int __devinit ixgbe_sw_init(struc
+ 
+ 	/* Set capability flags */
+ 	rss = min(IXGBE_MAX_RSS_INDICES, (int)num_online_cpus());
++	//CHRONICLE:
++	rss = 4;
+ 	adapter->ring_feature[RING_F_RSS].indices = rss;
+ 	adapter->flags |= IXGBE_FLAG_RSS_ENABLED;
+ 	switch (hw->mac.type) {
+@@ -5012,8 +5014,11 @@ static int __devinit ixgbe_sw_init(struc
+ 		/* Flow Director hash filters enabled */
+ 		adapter->flags |= IXGBE_FLAG_FDIR_HASH_CAPABLE;
+ 		adapter->atr_sample_rate = 20;
++		/* CHRONICLE
+ 		adapter->ring_feature[RING_F_FDIR].indices =
+ 							 IXGBE_MAX_FDIR_INDICES;
++		*/
++		adapter->ring_feature[RING_F_FDIR].indices = 4;
+ 		adapter->fdir_pballoc = IXGBE_FDIR_PBALLOC_64K;
+ #ifdef IXGBE_FCOE
+ 		adapter->flags |= IXGBE_FLAG_FCOE_CAPABLE;

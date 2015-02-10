@@ -1,0 +1,14 @@
+#! /bin/bash
+
+SCRIPTPATH=`dirname $0`
+BASEPATH=`cd $SCRIPTPATH; pwd`
+OUTPUT_DIR=${BASEPATH}/output
+rm -rf $OUTPUT_DIR
+
+${BASEPATH}/DataSeries/build_tools &&
+mkdir -p $OUTPUT_DIR && \
+cd $OUTPUT_DIR && \
+cmake ${BASEPATH} -DCMAKE_BUILD_TYPE=Coverage && \
+make -j && \
+make test && \
+make CodeCoverage doc sloccount

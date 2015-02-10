@@ -1,0 +1,86 @@
+#! /bin/bash
+
+#-- program usage:
+#-- crawl_exports filername output_directory
+
+
+declare cleanupCommands
+
+#-- getExports(filername)
+function getExports {
+    local filername=$1
+    local tempfile
+    tempfile=$(mktemp) || hadError "Unable to create temporary file"
+    cleanupCommands="rm $tempfile; ${cleanupCommands}"
+    showmount -e $filername >> $tempfile || \
+        hadError "Unable to get list of exports"
+    exportfile=$(mktemp) || hadError "Unable to create temporary file"
+    cleanupCommands="rm $exportfile; ${cleanupCommands}"
+    tail -n +2 < $tempfile | cut -f1 -d ' ' >> $exportfile || \
+        hadError "Unable to filter export list"
+    retVal=$exportfile
+}
+
+#-- hadError(errormessage)
+function hadError {
+    message=$1
+    echo "Error:" $message
+    exit 1
+}
+
+function doCleanup {
+    echo ...Cleaning up...
+    echo $tempCleanupCommands
+    sh -c "$tempCleanupCommands"
+    echo $cleanupCommands
+    sh -c "$cleanupCommands"
+}
+
+##################################################
+#-- main routine
+
+# check usage
+if [ $# -ne 2 ]; then
+    hadError "Incorrect usage (crawl_exports filername output_directory)"
+fi
+
+# when we exit the script for whatever reason, make sure we cleanup
+trap doCleanup EXIT
+
+filername="$1"
+output_directory="$2"
+local_mountpoint=$(mktemp -d) || \
+    hadError "Unable to create temporary mountpoint"
+cleanupCommands="rmdir $local_mountpoint; ${cleanupCommands}"
+cleanupCommands="umount $local_mountpoint; ${cleanupCommands}"
+threads=20
+
+# get the list of exports from the filer
+getExports $filername
+
+# iterate through the list and walk them
+DEFAULTIFS="$IFS"
+IFS=$'\n' # split only on newlines
+for e in `cat $retVal`; do
+    nfsmountpoint="${filername}:${e}"
+    # form the ds filename by replacing "/" w/ "_"
+    dsfilename=${output_directory}/`tr / _ <<< ${nfsmountpoint}`.ds
+    # skip the mountpoint if we've already scanned it
+    if [ ! -e "$dsfilename" ]; then
+        echo Walking ${nfsmountpoint} ...
+        # if there's a problem during the scan, make sure we delete the ds
+        # file we were writing so it'll get regenerated the next time
+        tempCleanupCommands="rm $dsfilename"
+        mount "$nfsmountpoint" "$local_mountpoint" -oro && \
+            ./fswalk -p "$local_mountpoint" -t $threads -o $dsfilename
+        if [ $? -ne 0 ]; then
+            echo Problem during fswalk removing file...
+            rm -f $dsfilename
+        fi
+        tempCleanupCommands=""
+        umount $local_mountpoint
+    else
+        echo "Skipping $nfsmountpoint (ds output file exists)"
+    fi
+done
+IFS="$DEFAULTIFS"

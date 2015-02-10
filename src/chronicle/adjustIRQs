@@ -1,0 +1,59 @@
+#! /usr/bin/perl -w
+
+# -r : distribute the ethX irqs round-robin
+# -a : allow all ethX irqs to go to all CPUs
+
+my $mode = "error";
+$mode = "rr" if ($ARGV[0] eq "-r");
+$mode = "all" if ($ARGV[0] eq "-a");
+die "must specify -a or -r" if ($mode eq "error");
+
+my @irqlist = getEthIrqs();
+my $numcpus = getNumCpus();
+
+for (my $i = 0; $i < $#irqlist; $i++) {
+    my $irq = $irqlist[$i];
+    open (my $fh, '>', "/proc/irq/$irq/smp_affinity") or die $!;
+    my $bitstring;
+    if ($mode eq "rr") {
+        my $cpu = $i % $numcpus;
+        $bitstring = numToHexBitstring($cpu)
+    } else {
+        $bitstring = sprintf "%x", (1 << ($numcpus)) - 1;
+    }
+    print "setting irq $irq affinity to $bitstring\n";
+    print $fh $bitstring . "\n";
+    close($fh);
+}
+
+sub numToHexBitstring {
+    my ($num) = @_;
+    my $bit = 1 << $num;
+    return sprintf "%x", $bit;
+}
+
+sub getNumCpus {
+    my $numCpus = 0;
+    open (my $fh, '<', "/proc/cpuinfo") or die $!;
+    while (<$fh>) {
+        chomp();
+        if (/^processor\s*:\s*(\d+)$/) {
+            $numCpus = $1 if ($1 > $numCpus);
+        }
+    }
+    close($fh);
+    return $numCpus + 1;
+}
+
+sub getEthIrqs {
+    my @irqnums;
+    open (my $fh, '<', "/proc/interrupts") or die $!;
+    while (<$fh>) {
+        chomp();
+        if (/^\s*(\d+):.*eth/) {
+            push @irqnums, $1;
+        }
+    }
+    close($fh);
+    return @irqnums;
+}

@@ -1,0 +1,17 @@
+#! /bin/bash
+
+# usage ./nfsTraceCompressionRatio dsfiles...
+# Calculates the "compression ratio" of a set of DS files by summing the
+# original wire lengths of the packets in the trace and dividing by the
+# sum of the size of the resulting DS files.
+
+DSSTATGROUPBY=../DataSeries/bin/dsstatgroupby
+
+FILES=$*
+
+declare -i FILE_SIZES=0
+for i in $FILES ; do
+    let FILE_SIZES=$(($FILE_SIZES + `stat -c '%s' $i`))
+done
+
+$DSSTATGROUPBY trace::net::ip basic wire_length from $FILES | sed '/^[#]/d' | head -1 | awk '{print $1*$2/'$FILE_SIZES'}'

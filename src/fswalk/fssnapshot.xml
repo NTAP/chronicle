@@ -1,0 +1,22 @@
+<!-- Copyright 2012 NetApp, Inc. -->
+<ExtentType name="fssnapshot" namespace="atg.netapp.com" version="1.0">
+  <field name="p_ino" type="int64" pack_relative="p_ino"
+    comment="inode number of the parent directory" />
+  <field name="filename" type="variable32" comment="name of the file" />
+  <field name="ino" type="int64" comment="inode number of the file" />
+  <field name="dev" type="int64" comment="ID of the device containing the file" />
+  <field name="mode" type="int32" comment="the file's mode bits (type and permissions)" />
+  <field name="nlink" type="int64" comment="number of hard links to the file" />
+  <field name="uid" type="int32" comment="user ID of the owner" />
+  <field name="gid" type="int32" comment="group ID of the owner" />
+  <field name="rdev" type="int64" comment="device ID (if special file)" />
+  <field name="size" type="int64" comment="total size (bytes)" />
+  <field name="blksize" type="int32" comment="preferred block size for I/O (bytes)" />
+  <field name="blocks" type="int64" comment="count of 512B blocks allocated" />
+  <field name="atime" type="int64"
+    comment="time of last access (seconds since epoch)" />
+  <field name="mtime" type="int64" pack_relative="atime"
+    comment="time of last modification (seconds since epoch)" />
+  <field name="ctime" type="int64" pack_relative="atime"
+    comment="time of last status change (seconds since epoch)" />
+</ExtentType>

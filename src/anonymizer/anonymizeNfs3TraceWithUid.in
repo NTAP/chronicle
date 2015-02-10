@@ -1,0 +1,70 @@
+#! /bin/bash
+
+# Usage:
+# <scriptname> -i infile.ds -o outfile.ds -k keyfile
+
+SCRIPTPATH=`dirname $0`
+BASEPATH=`cd $SCRIPTPATH; pwd`
+ANON_EXE=${SCRIPTPATH}/anonymizer
+
+# The number of upper bits to mask out in IP addresses
+IPBITS=8
+
+${ANON_EXE} $* \
+  --ipaddr=trace::net::ip,source,${IPBITS} \
+  --ipaddr=trace::net::ip,dest,${IPBITS} \
+  --ipaddr=trace::rpc,client,${IPBITS} \
+  --ipaddr=trace::rpc,server,${IPBITS} \
+  --filename_ext=trace::rpc::nfs3::create,filename \
+  --pathname_ext=trace::rpc::nfs3::create,target \
+  --filename_ext=trace::rpc::nfs3::link,filename \
+  --filename_ext=trace::rpc::nfs3::lookup,filename \
+  --filename_ext=trace::rpc::nfs3::readdir::entries,filename \
+  --pathname_ext=trace::rpc::nfs3::readlink,target \
+  --filename_ext=trace::rpc::nfs3::remove,filename \
+  --filename_ext=trace::rpc::nfs3::rename,from_filename \
+  --filename_ext=trace::rpc::nfs3::rename,to_filename \
+  --fpe=trace::rpc::nfs3::access,postop_uid,uid \
+  --fpe=trace::rpc::nfs3::access,postop_gid,gid \
+  --fpe=trace::rpc::nfs3::commit,postop_uid,uid \
+  --fpe=trace::rpc::nfs3::commit,postop_gid,gid \
+  --fpe=trace::rpc::nfs3::create,uid,uid \
+  --fpe=trace::rpc::nfs3::create,gid,gid \
+  --fpe=trace::rpc::nfs3::create,obj_uid,uid \
+  --fpe=trace::rpc::nfs3::create,obj_gid,gid \
+  --fpe=trace::rpc::nfs3::create,parent_postop_uid,uid \
+  --fpe=trace::rpc::nfs3::create,parent_postop_gid,gid \
+  --fpe=trace::rpc::nfs3::fsinfo,uid,uid \
+  --fpe=trace::rpc::nfs3::fsinfo,gid,gid \
+  --fpe=trace::rpc::nfs3::fsstat,uid,uid \
+  --fpe=trace::rpc::nfs3::fsstat,gid,gid \
+  --fpe=trace::rpc::nfs3::getattr,uid,uid \
+  --fpe=trace::rpc::nfs3::getattr,gid,gid \
+  --fpe=trace::rpc::nfs3::link,obj_uid,uid \
+  --fpe=trace::rpc::nfs3::link,obj_gid,gid \
+  --fpe=trace::rpc::nfs3::link,parent_postop_uid,uid \
+  --fpe=trace::rpc::nfs3::link,parent_postop_gid,gid \
+  --fpe=trace::rpc::nfs3::lookup,obj_uid,uid \
+  --fpe=trace::rpc::nfs3::lookup,obj_gid,gid \
+  --fpe=trace::rpc::nfs3::lookup,parent_uid,uid \
+  --fpe=trace::rpc::nfs3::lookup,parent_gid,gid \
+  --fpe=trace::rpc::nfs3::pathconf,uid,uid \
+  --fpe=trace::rpc::nfs3::pathconf,gid,gid \
+  --fpe=trace::rpc::nfs3::readdir,dir_uid,uid \
+  --fpe=trace::rpc::nfs3::readdir,dir_gid,gid \
+  --fpe=trace::rpc::nfs3::readdir::entries,uid,uid \
+  --fpe=trace::rpc::nfs3::readdir::entries,gid,gid \
+  --fpe=trace::rpc::nfs3::readlink,postop_uid,uid \
+  --fpe=trace::rpc::nfs3::readlink,postop_gid,gid \
+  --fpe=trace::rpc::nfs3::readwrite,postop_uid,uid \
+  --fpe=trace::rpc::nfs3::readwrite,postop_gid,gid \
+  --fpe=trace::rpc::nfs3::remove,parent_postop_uid,uid \
+  --fpe=trace::rpc::nfs3::remove,parent_postop_gid,gid \
+  --fpe=trace::rpc::nfs3::rename,fromdir_postop_uid,uid \
+  --fpe=trace::rpc::nfs3::rename,fromdir_postop_gid,gid \
+  --fpe=trace::rpc::nfs3::rename,todir_postop_uid,uid \
+  --fpe=trace::rpc::nfs3::rename,todir_postop_gid,gid \
+  --fpe=trace::rpc::nfs3::setattr,set_uid,uid \
+  --fpe=trace::rpc::nfs3::setattr,set_gid,gid \
+  --fpe=trace::rpc::nfs3::setattr,postop_uid,uid \
+  --fpe=trace::rpc::nfs3::setattr,postop_gid,gid

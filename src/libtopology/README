@@ -1,0 +1,6 @@
+* All of the implementation is based on the following two documents:
+ [1] http://www.intel.com/Assets/PDF/appnote/241618.pdf
+ [2] http://software.intel.com/en-us/articles/intel-64-architecture-processor-topology-enumeration/
+
+* sampleTopologyMapApp.cc illustrates the API supported by libtopology.
+
